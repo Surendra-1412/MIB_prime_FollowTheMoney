@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MIB Analyst Workspace &middot; PayU Protect</title>
+<link rel="stylesheet" href="style.css">
+<script src="script.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <button class="icon-btn" id="sidebarToggle" aria-label="Toggle merchant sidebar" aria-expanded="true" aria-controls="sidebar"><span class="burger"></span></button>
+    <h1>MIB <small>Analyst Workspace &middot; PayU Protect Multi-Pillar Engine</small></h1>
+  </div>
+  <div class="profile">
+    <button class="icon-btn" id="toggleDocPanelBtn" title="Toggle Evidence Document & OSINT Panel">&#128196;<small style="font-size:10px;vertical-align:top">OSINT</small></button>
+    <button class="icon-btn bell" aria-label="Notifications">&#9993;<i class="dot"></i></button>
+    <span class="chip-user">Analyst 01</span>
+  </div>
+</header>
+
+<nav class="filters" id="tabs" aria-label="Intelligence filters">
+  <button class="tab active" data-filter="all" aria-pressed="true">All Queries</button>
+  <button class="tab" data-filter="osint" aria-pressed="false">Public Information (OSINT)</button>
+  <button class="tab" data-filter="ai" aria-pressed="false">AI-Based Analysis</button>
+  <button class="tab" data-filter="txn" aria-pressed="false">Transaction Intelligence</button>
+  <button class="tab" data-filter="doc" aria-pressed="false">Document Verification</button>
+  <button class="tab" data-filter="network" aria-pressed="false">Network &amp; Relationship</button>
+  <button class="tab" data-filter="hist" aria-pressed="false">Historical Risk</button>
+  <button class="tab" data-filter="benef" aria-pressed="false">Beneficiary Intelligence</button>
+</nav>
+
+<div class="toolbar">
+  <div class="title">
+    <h2>Merchant Investigation</h2>
+    <p>Multi-Pillar Engine: Dynamic GraphSAGE GNN, Temporal Transformer, CatBoost Classifier, Document NLP &amp; OSINT RDAP.</p>
+  </div>
+  <div class="selects">
+    <label>Risk level
+      <select id="fRisk"><option value="">All</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select></label>
+    <label>Status
+      <select id="fStatus"><option value="">All</option><option>Pending</option><option>Review</option><option>Verified</option><option>Qualified</option><option>Rejected</option></select></label>
+    <label>Generated on
+      <input type="date" id="fDate"></label>
+    <label>Merchant
+      <select id="fMerchant"><option value="">Select merchant</option></select></label>
+    <span class="badge ok" id="backendBadge">Engine: Connected</span>
+  </div>
+</div>
+
+<!-- Live Scenario Simulation Bar -->
+<section class="stream-toolbar" aria-label="Simulate transaction events">
+  <div class="sim-label">
+    <span class="pulse-indicator"></span>
+    <strong>Live Engine Simulation:</strong>
+    <span class="sub">Inject payment events directly to ML pipeline:</span>
+  </div>
+  <div class="stream-btns">
+    <button class="btn ghost sm" id="simNormalBtn">&#9654; Normal Payment</button>
+    <button class="btn warn sm" id="simClonedBtn">&#9888; Cloned POS (&gt;1000 km/h)</button>
+    <button class="btn danger sm" id="simSyndicateBtn">&#9760; Syndicate Burst (Mule Ring)</button>
+  </div>
+  <span id="simAlert" class="sim-alert sub" aria-live="polite"></span>
+</section>
+
+<!-- Collapsible Evidence Document & OSINT RDAP Panel -->
+<section class="panel doc-osint-panel" id="docOsintSection">
+  <div class="phead">
+    <h3>Evidence Document &amp; OSINT RDAP Domain Intelligence</h3>
+    <span class="badge ready" id="docTypeBadge">Tax Invoice / Receipt</span>
+  </div>
+  <div class="doc-osint-grid">
+    <div class="doc-col">
+      <label class="sub" for="docInputText">Merchant Evidence Document / Invoice / KYC Text:</label>
+      <textarea id="docInputText" rows="5" placeholder="Paste invoice text, GST registration, bank statement, or KYC proof here..."></textarea>
+      <div class="doc-actions">
+        <button class="btn primary sm" id="analyzeDocBtn">Run Document NLP &amp; RDAP OSINT</button>
+        <button class="btn ghost sm" id="loadSampleDocBtn">Reset Document</button>
+      </div>
+    </div>
+    <div class="osint-col">
+      <div class="osint-card" id="osintCard">
+        <div class="sub-h"><strong>OSINT RDAP Domain Analysis</strong> <span class="badge" id="osintRiskBadge">Low Risk</span></div>
+        <div class="osint-meta" id="osintMeta">
+          <p class="sub">Select or analyze a merchant to view live RDAP registrar, domain age, and IP resolution.</p>
+        </div>
+      </div>
+      <div class="entities-card" id="entitiesCard">
+        <div class="sub-h"><strong>Extracted Entities (NLP Extractor)</strong></div>
+        <div class="entities-tags" id="entitiesTags">
+          <span class="tag">GSTIN: Pending</span>
+          <span class="tag">PAN: Pending</span>
+          <span class="tag">IFSC: Pending</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="workspace" id="workspace">
+  <aside class="panel merchants" id="sidebar" aria-label="Merchants">
+    <div class="phead"><h3>Merchants</h3><button class="icon-btn sm" id="sidebarClose" aria-label="Hide merchants">&#10094;</button></div>
+    <input type="search" id="search" placeholder="Search merchants or IDs..." aria-label="Search merchants">
+    <div class="mlist" id="merchantList"></div>
+  </aside>
+
+  <section class="panel engine" aria-label="Investigation engine">
+    <div class="phead"><h3>Intelligence Engine</h3><button class="btn ghost sm" id="sidebarOpen" hidden>Show merchants</button></div>
+    <h4 id="engName">Select a merchant</h4>
+    <p class="sub" id="engMeta"></p>
+    
+    <div class="idx" id="engIdx"></div>
+
+    <!-- Real ML Model Telemetry Cards -->
+    <div class="model-telemetry" id="modelTelemetry">
+      <div class="metric-card">
+        <span class="sub">CatBoost Fraud</span>
+        <b id="mFraudScore">0.00%</b>
+      </div>
+      <div class="metric-card">
+        <span class="sub">Decision</span>
+        <span class="badge ready" id="mActionBadge">PENDING</span>
+      </div>
+      <div class="metric-card">
+        <span class="sub">GNN Syndicate</span>
+        <b id="mSyndicateScore">0.000</b>
+      </div>
+      <div class="metric-card">
+        <span class="sub">Transformer MSE</span>
+        <b id="mAnomalyScore">0.000</b>
+      </div>
+    </div>
+
+    <ul class="modules" id="modules"></ul>
+    
+    <label class="prog"><span id="progText">Investigation progress</span><progress id="progBar" max="100" value="0"></progress></label>
+    <p class="status sub" id="engStatus" aria-live="polite">Engine status: Idle.</p>
+    <button class="btn primary" id="runBtn">Run Intelligence Engine</button>
+  </section>
+
+  <section class="panel queries" aria-label="Generated queries">
+    <div class="phead">
+      <h3>Engine-Generated Queries</h3>
+      <span class="sub" id="queryCount">5 queries</span>
+    </div>
+    <ol class="qlist" id="queryList"></ol>
+  </section>
+</main>
+
+<section class="lower">
+  <article class="panel weights">
+    <h3>Query Weight &amp; Impact Distribution</h3>
+    <div id="weights"></div>
+  </article>
+  <article class="panel detail">
+    <h3 id="detailTitle">Query Details &amp; SHAP Decomposition</h3>
+    <dl id="detailBody"></dl>
+  </article>
+  <article class="panel decision">
+    <h3>Analyst Decision</h3>
+    <div class="btns">
+      <button class="btn primary" data-decision="verify">Verify</button>
+      <button class="btn danger" data-decision="reject">Reject</button>
+      <button class="btn warn" data-decision="qualify">Qualify</button>
+    </div>
+    <textarea id="comment" rows="3" placeholder="Add analyst notes or investigation justification..." aria-label="Analyst comments"></textarea>
+    <p class="sub" id="decisionMsg" aria-live="polite"></p>
+    <p class="sub" id="outcome"></p>
+  </article>
+  <article class="panel audit">
+    <h3>Persistent Audit Trail</h3>
+    <ol id="auditList"></ol>
+  </article>
+</section>
+
+<footer class="foot">MIB &middot; Independent Financial Intelligence Network &middot; Real-Time Explainable Fintech Fraud Engine</footer>
+</body>
+</html>
